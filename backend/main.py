@@ -18,7 +18,7 @@ app = FastAPI(title="Recruitify (FastAPI backend)")
 # allow frontend access during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # during dev; restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,6 +47,13 @@ class Application(SQLModel, table=True):
     job_id: int = Field(foreign_key="job.id")
     candidate_id: int = Field(foreign_key="candidate.id")
     cover_letter: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str
+    email: str
+    role: Optional[str] = "recruiter"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 # --- DB helpers ---
@@ -79,6 +86,8 @@ def on_startup():
     seed_jobs_if_empty()
 
 # --- API endpoints (prefixed with /api) ---
+
+# JOBS
 @app.get("/api/jobs")
 def list_jobs(session: Session = Depends(get_session)):
     return session.exec(select(Job).order_by(Job.created_at.desc())).all()
@@ -90,6 +99,23 @@ def create_job(job: Job, session: Session = Depends(get_session)):
     session.refresh(job)
     return job
 
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: int, session: Session = Depends(get_session)):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+@app.delete("/api/jobs/{job_id}")
+def delete_job(job_id: int, session: Session = Depends(get_session)):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    session.delete(job)
+    session.commit()
+    return {"detail": "Job deleted"}
+
+# CANDIDATES
 @app.get("/api/candidates")
 def list_candidates(session: Session = Depends(get_session)):
     return session.exec(select(Candidate).order_by(Candidate.created_at.desc())).all()
@@ -104,6 +130,7 @@ def create_candidate(candidate: Candidate, session: Session = Depends(get_sessio
     session.refresh(candidate)
     return candidate
 
+# APPLICATIONS
 @app.post("/api/apply", status_code=201)
 def apply(payload: dict, session: Session = Depends(get_session)):
     name = payload.get("name")
@@ -135,8 +162,8 @@ def apply(payload: dict, session: Session = Depends(get_session)):
         "id": application.id,
         "created_at": application.created_at,
         "cover_letter": application.cover_letter,
-        "job": {"id": job.id, "title": job.title, "description": job.description, "location": job.location},
-        "candidate": {"id": candidate.id, "name": candidate.name, "email": candidate.email, "resume": candidate.resume}
+        "job": {"id": job.id, "title": job.title},
+        "candidate": {"id": candidate.id, "name": candidate.name, "email": candidate.email}
     }
 
 @app.get("/api/applications")
@@ -154,3 +181,34 @@ def list_applications(session: Session = Depends(get_session)):
             "candidate": {"id": candidate.id, "name": candidate.name, "email": candidate.email} if candidate else None
         })
     return results
+
+# USERS (simple CRUD for recruiters/admins)
+@app.get("/api/users")
+def list_users(session: Session = Depends(get_session)):
+    return session.exec(select(User).order_by(User.created_at.desc())).all()
+
+@app.post("/api/users", status_code=201)
+def create_user(user: User, session: Session = Depends(get_session)):
+    found = session.exec(select(User).where(User.email == user.email)).first()
+    if found:
+        raise HTTPException(status_code=409, detail="User with this email already exists")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+@app.get("/api/users/{user_id}")
+def get_user(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    session.delete(user)
+    session.commit()
+    return {"detail": "User deleted"}
