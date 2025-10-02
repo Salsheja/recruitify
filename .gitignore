@@ -15,3 +15,12 @@ venv/
 
 # Logs
 *.log
+# Databases
+*.db
+
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Full requirements file (optional if you don’t want to track)
+requirements_full.txt
