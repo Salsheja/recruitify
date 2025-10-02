@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Recruitify - Simple Recruitment App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Recruitify</h1>
+  <p>A simple recruitment platform.</p>
+
+  <section>
+    <h2>Available Jobs</h2>
+    <ul id="jobs-list"></ul>
+  </section>
+
+  <section>
+    <h2>Apply for a Job</h2>
+    <form id="application-form">
+      <input type="text" id="name" placeholder="Your Name" required><br>
+      <input type="email" id="email" placeholder="Your Email" required><br>
+      <textarea id="resume" placeholder="Paste your resume here"></textarea><br>
+      <select id="job-select" required></select><br>
+      <textarea id="cover-letter" placeholder="Cover letter"></textarea><br>
+      <button type="submit">Apply</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Applications Received</h2>
+    <ul id="applications-list"></ul>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
